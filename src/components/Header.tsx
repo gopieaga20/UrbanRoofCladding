@@ -4,6 +4,26 @@ import { NavLink } from 'react-router-dom';
 import { Menu, X, Phone, Mail } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+const navLinks = [
+  { to: '/', label: 'Home' },
+  { to: '/about', label: 'About' },
+  { to: '/solutions', label: 'Solutions' },
+  { to: '/products', label: 'Products' },
+  { to: '/applications', label: 'Applications' },
+  { to: '/projects', label: 'Projects' },
+  { to: '/contact', label: 'Contact' },
+];
+
+const linkClass = ({ isActive }: { isActive: boolean }) =>
+  `font-bold transition-colors text-lg relative ${
+    isActive
+      ? 'font-extrabold border-b-2 pb-1'
+      : 'text-gray-800 hover:text-[#11a9df]'
+  }`;
+
+const linkStyle = ({ isActive }: { isActive: boolean }) =>
+  isActive ? { color: '#11a9df', borderColor: '#11a9df' } : {};
+
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
 
@@ -32,19 +52,24 @@ const Header = () => {
             </div>
             <div className="hidden sm:flex items-center space-x-2">
               <Mail className="h-4 w-4" />
-              <span className="hover:underline cursor-pointer font-bold text-white" onClick={() => window.location.href = 'mailto:urbanroofingandcladding@gmail.com'}>urbanroofingandcladding@gmail.com</span>
+              <span
+                className="hover:underline cursor-pointer font-bold text-white"
+                onClick={() => window.location.href = 'mailto:urbanroofingandcladding@gmail.com'}
+              >
+                urbanroofingandcladding@gmail.com
+              </span>
             </div>
           </div>
           <div className="hidden md:flex space-x-2">
-            <Button 
-              size="sm" 
+            <Button
+              size="sm"
               onClick={handleGetQuote}
               className="bg-white text-[#11a9df] hover:bg-gray-100 font-bold shadow-md border-2 border-white"
             >
               Get Quote
             </Button>
-            <Button 
-              size="sm" 
+            <Button
+              size="sm"
               onClick={handleCallNow}
               className="bg-orange-600 hover:bg-orange-700 text-white font-bold shadow-md"
             >
@@ -58,9 +83,9 @@ const Header = () => {
       <div className="container mx-auto px-4">
         <div className="flex justify-between items-center py-4">
           <NavLink to="/" onClick={handleNavClick} className="flex items-center space-x-3">
-            <img 
-              src="/lovable-uploads/ddfadf40-9e47-4252-a913-1c0e1569a45f.png" 
-              alt="Urban Roofing and Cladding Solutions" 
+            <img
+              src="/lovable-uploads/ddfadf40-9e47-4252-a913-1c0e1569a45f.png"
+              alt="Urban Roofing and Cladding Solutions"
               className="h-20 w-auto"
             />
             <div className="flex flex-col">
@@ -71,76 +96,18 @@ const Header = () => {
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-8">
-            <NavLink 
-              to="/" 
-              onClick={handleNavClick}
-              className={({ isActive }) => 
-                `font-bold transition-colors text-lg ${isActive ? 'font-extrabold' : 'text-gray-800 hover:text-[#11a9df]'}`
-              }
-              style={({ isActive }) => isActive ? { color: '#11a9df' } : {}}
-            >
-              Home
-            </NavLink>
-            <NavLink 
-              to="/about" 
-              onClick={handleNavClick}
-              className={({ isActive }) => 
-                `font-bold transition-colors text-lg ${isActive ? 'font-extrabold' : 'text-gray-800 hover:text-[#11a9df]'}`
-              }
-              style={({ isActive }) => isActive ? { color: '#11a9df' } : {}}
-            >
-              About
-            </NavLink>
-            <NavLink 
-              to="/solutions" 
-              onClick={handleNavClick}
-              className={({ isActive }) => 
-                `font-bold transition-colors text-lg ${isActive ? 'font-extrabold' : 'text-gray-800 hover:text-[#11a9df]'}`
-              }
-              style={({ isActive }) => isActive ? { color: '#11a9df' } : {}}
-            >
-              Solutions
-            </NavLink>
-            <NavLink 
-              to="/products" 
-              onClick={handleNavClick}
-              className={({ isActive }) => 
-                `font-bold transition-colors text-lg ${isActive ? 'font-extrabold' : 'text-gray-800 hover:text-[#11a9df]'}`
-              }
-              style={({ isActive }) => isActive ? { color: '#11a9df' } : {}}
-            >
-              Products
-            </NavLink>
-            <NavLink 
-              to="/applications" 
-              onClick={handleNavClick}
-              className={({ isActive }) => 
-                `font-bold transition-colors text-lg ${isActive ? 'font-extrabold' : 'text-gray-800 hover:text-[#11a9df]'}`
-              }
-              style={({ isActive }) => isActive ? { color: '#11a9df' } : {}}
-            >
-              Applications
-            </NavLink>
-            <NavLink 
-              to="/projects" 
-              onClick={handleNavClick}
-              className={({ isActive }) => 
-                `font-bold transition-colors text-lg ${isActive ? 'font-extrabold' : 'text-gray-800 hover:text-[#11a9df]'}`
-              }
-              style={({ isActive }) => isActive ? { color: '#11a9df' } : {}}
-            >
-              Projects
-            </NavLink>
-            <NavLink 
-              to="/contact" 
-              onClick={handleNavClick}
-              className={({ isActive }) => 
-                `font-bold transition-colors text-lg ${isActive ? 'font-extrabold' : 'text-gray-800 hover:text-[#11a9df]'}`
-              }
-              style={({ isActive }) => isActive ? { color: '#11a9df' } : {}}
-            >
-              Contact
-            </NavLink>
+            {navLinks.map(({ to, label }) => (
+              <NavLink
+                key={to}
+                to={to}
+                end={to === '/'}
+                onClick={handleNavClick}
+                className={linkClass}
+                style={linkStyle}
+              >
+                {label}
+              </NavLink>
+            ))}
           </nav>
 
           {/* Mobile Menu Button */}
@@ -157,89 +124,29 @@ const Header = () => {
         {isMenuOpen && (
           <div className="md:hidden py-4 border-t">
             <nav className="flex flex-col space-y-4">
-              <NavLink 
-                to="/" 
-                onClick={handleNavClick}
-                className={({ isActive }) => 
-                  `font-bold transition-colors text-lg ${isActive ? 'font-extrabold' : 'text-gray-800 hover:text-[#11a9df]'}`
-                }
-                style={({ isActive }) => isActive ? { color: '#11a9df' } : {}}
-              >
-                Home
-              </NavLink>
-              <NavLink 
-                to="/about" 
-                onClick={handleNavClick}
-                className={({ isActive }) => 
-                  `font-bold transition-colors text-lg ${isActive ? 'font-extrabold' : 'text-gray-800 hover:text-[#11a9df]'}`
-                }
-                style={({ isActive }) => isActive ? { color: '#11a9df' } : {}}
-              >
-                About
-              </NavLink>
-              <NavLink 
-                to="/solutions" 
-                onClick={handleNavClick}
-                className={({ isActive }) => 
-                  `font-bold transition-colors text-lg ${isActive ? 'font-extrabold' : 'text-gray-800 hover:text-[#11a9df]'}`
-                }
-                style={({ isActive }) => isActive ? { color: '#11a9df' } : {}}
-              >
-                Solutions
-              </NavLink>
-              <NavLink 
-                to="/products" 
-                onClick={handleNavClick}
-                className={({ isActive }) => 
-                  `font-bold transition-colors text-lg ${isActive ? 'font-extrabold' : 'text-gray-800 hover:text-[#11a9df]'}`
-                }
-                style={({ isActive }) => isActive ? { color: '#11a9df' } : {}}
-              >
-                Products
-              </NavLink>
-              <NavLink 
-                to="/applications" 
-                onClick={handleNavClick}
-                className={({ isActive }) => 
-                  `font-bold transition-colors text-lg ${isActive ? 'font-extrabold' : 'text-gray-800 hover:text-[#11a9df]'}`
-                }
-                style={({ isActive }) => isActive ? { color: '#11a9df' } : {}}
-              >
-                Applications
-              </NavLink>
-              <NavLink 
-                to="/projects" 
-                onClick={handleNavClick}
-                className={({ isActive }) => 
-                  `font-bold transition-colors text-lg ${isActive ? 'font-extrabold' : 'text-gray-800 hover:text-[#11a9df]'}`
-                }
-                style={({ isActive }) => isActive ? { color: '#11a9df' } : {}}
-              >
-                Projects
-              </NavLink>
-              <NavLink 
-                to="/contact" 
-                onClick={handleNavClick}
-                className={({ isActive }) => 
-                  `font-bold transition-colors text-lg ${isActive ? 'font-extrabold' : 'text-gray-800 hover:text-[#11a9df]'}`
-                }
-                style={({ isActive }) => isActive ? { color: '#11a9df' } : {}}
-              >
-                Contact
-              </NavLink>
+              {navLinks.map(({ to, label }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  end={to === '/'}
+                  onClick={handleNavClick}
+                  className={linkClass}
+                  style={linkStyle}
+                >
+                  {label}
+                </NavLink>
+              ))}
               <div className="flex space-x-2 pt-4">
-                <Button 
-                  size="sm" 
-                  className="font-bold bg-white border-2 text-[#11a9df] hover:text-white"
+                <Button
+                  size="sm"
+                  className="font-bold bg-white border-2 text-[#11a9df] hover:bg-[#11a9df] hover:text-white transition-colors"
                   style={{ borderColor: '#11a9df' }}
                   onClick={handleGetQuote}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#11a9df'}
-                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'white'}
                 >
                   Get Quote
                 </Button>
-                <Button 
-                  size="sm" 
+                <Button
+                  size="sm"
                   onClick={handleCallNow}
                   className="font-bold bg-orange-600 hover:bg-orange-700 text-white"
                 >

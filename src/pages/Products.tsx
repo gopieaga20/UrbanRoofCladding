@@ -1,11 +1,9 @@
 
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { CheckCircle2 } from 'lucide-react';
 
 const Products = () => {
-  // Add timestamp for cache busting
-  const cacheBuster = Date.now();
-  
   const products = [
     {
       title: "Metal Roofing Sheets",
@@ -92,66 +90,69 @@ const Products = () => {
   ];
 
   const handleImageError = (e: React.SyntheticEvent<HTMLImageElement>) => {
-    console.log('Image failed to load:', e.currentTarget.src);
-    // Fallback to a placeholder or default image
     e.currentTarget.src = "https://images.unsplash.com/photo-1486718448742-163732cd1544?auto=format&fit=crop&w=800&q=80";
   };
 
   return (
-    <div className="min-h-screen py-16">
-      <div className="container mx-auto px-4">
-        {/* Hero Section */}
-        <div className="relative mb-16">
-          <div className="absolute inset-0 rounded-lg overflow-hidden">
-            <img 
-              src="https://images.unsplash.com/photo-1486718448742-163732cd1544?auto=format&fit=crop&w=1920&q=80" 
-              alt="Quality products" 
-              className="w-full h-full object-cover opacity-10"
-            />
-          </div>
-          <div className="relative text-center py-16">
-            <h1 className="text-4xl md:text-5xl font-bold mb-6 text-gray-900">
-              Our Products
-            </h1>
-            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              High-quality materials from trusted manufacturers for industrial and commercial applications
-            </p>
-          </div>
+    <div className="min-h-screen">
+      {/* Hero Section */}
+      <section className="bg-gradient-to-br from-cyan-600 via-blue-600 to-teal-600 text-white py-20 relative overflow-hidden">
+        <div className="absolute inset-0">
+          <img
+            src="https://images.unsplash.com/photo-1486718448742-163732cd1544?auto=format&fit=crop&w=1920&q=80"
+            alt="Quality products"
+            className="w-full h-full object-cover opacity-20"
+          />
+          <div className="absolute inset-0 bg-gradient-to-br from-cyan-600/80 via-blue-600/80 to-teal-600/80" />
         </div>
+        <div className="absolute bottom-0 left-0 w-48 h-48 opacity-10">
+          <div className="w-full h-full border-l-8 border-b-8 border-white rounded-tr-full" />
+        </div>
+        <div className="container mx-auto px-4 relative z-10 text-center">
+          <h1 className="text-4xl md:text-5xl font-bold mb-4 text-white drop-shadow-lg">
+            Our Products
+          </h1>
+          <p className="text-xl text-white/90 max-w-3xl mx-auto font-medium">
+            High-quality materials from trusted manufacturers for industrial and commercial applications
+          </p>
+        </div>
+      </section>
 
+      <div className="container mx-auto px-4 py-16">
         {/* Products Grid */}
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8 mb-16">
           {products.map((product, index) => (
-            <Card key={`${index}-${cacheBuster}`} className="h-full hover:shadow-lg transition-shadow overflow-hidden">
+            <Card
+              key={index}
+              className="h-full hover:shadow-xl transition-all duration-300 overflow-hidden border border-gray-200 hover:scale-[1.02] border-t-4"
+              style={{ borderTopColor: '#11a9df' }}
+            >
               <div className="aspect-video overflow-hidden">
-                <img 
-                  key={`img-${index}-${cacheBuster}`}
-                  src={product.image} 
+                <img
+                  src={product.image}
                   alt={product.title}
                   className="w-full h-full object-cover hover:scale-105 transition-transform duration-300"
                   onError={handleImageError}
-                  onLoad={() => console.log('Image loaded successfully:', product.image)}
+                  loading="lazy"
                 />
               </div>
               <CardHeader>
                 <CardTitle className="text-xl text-gray-900">
                   {product.title}
                 </CardTitle>
-                <p className="text-gray-600">
+                <p className="text-gray-600 text-sm">
                   {product.description}
                 </p>
               </CardHeader>
               <CardContent>
+                <h4 className="font-semibold text-gray-900 mb-3 text-sm uppercase tracking-wide">Specifications</h4>
                 <div className="space-y-2">
-                  <h4 className="font-semibold text-gray-900 mb-3">Specifications:</h4>
-                  <div className="space-y-2">
-                    {product.specifications.map((spec, specIndex) => (
-                      <div key={specIndex} className="flex items-start">
-                        <div className="w-2 h-2 bg-blue-600 rounded-full mt-2 mr-3 flex-shrink-0"></div>
-                        <span className="text-sm text-gray-600">{spec}</span>
-                      </div>
-                    ))}
-                  </div>
+                  {product.specifications.map((spec, specIndex) => (
+                    <div key={specIndex} className="flex items-start gap-2">
+                      <CheckCircle2 className="h-4 w-4 text-[#11a9df] mt-0.5 flex-shrink-0" />
+                      <span className="text-sm text-gray-600">{spec}</span>
+                    </div>
+                  ))}
                 </div>
               </CardContent>
             </Card>
@@ -159,27 +160,30 @@ const Products = () => {
         </div>
 
         {/* CTA Section */}
-        <section className="text-center">
+        <section className="text-center bg-gray-50 rounded-xl p-12 border border-gray-100">
           <h2 className="text-3xl font-bold mb-4 text-gray-900">
             Need Detailed Specifications?
           </h2>
           <p className="text-lg text-gray-600 mb-8 max-w-2xl mx-auto">
-            Contact us for detailed product specifications, technical data sheets, 
+            Contact us for detailed product specifications, technical data sheets,
             and customized solutions for your project requirements.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <button 
+            <Button
+              size="lg"
+              className="bg-[#11a9df] hover:bg-[#0ea5db] text-white font-bold shadow-lg px-8"
               onClick={() => window.open('https://wa.me/919384818299?text=Hi, I need detailed product specifications for my project.', '_blank')}
-              className="bg-blue-600 text-white px-8 py-3 rounded-lg hover:bg-blue-700 transition-colors"
             >
               Get Product Details
-            </button>
-            <button 
+            </Button>
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-2 border-[#11a9df] text-[#11a9df] hover:bg-[#11a9df] hover:text-white font-bold shadow-lg px-8"
               onClick={() => window.location.href = 'tel:+919384818299'}
-              className="border border-blue-600 text-blue-600 px-8 py-3 rounded-lg hover:bg-blue-600 hover:text-white transition-colors"
             >
               Speak to Expert
-            </button>
+            </Button>
           </div>
         </section>
       </div>

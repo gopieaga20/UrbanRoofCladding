@@ -3,7 +3,7 @@ import { Phone, Mail, MapPin, Facebook, Instagram } from 'lucide-react';
 
 const Footer = () => {
   return (
-    <footer className="bg-gray-900 text-white py-12">
+    <footer className="bg-gray-900 text-white py-12 border-t-4" style={{ borderColor: '#11a9df' }}>
       <div className="container mx-auto px-4">
         <div className="grid md:grid-cols-3 gap-8">
           {/* Company Info */}
@@ -87,7 +87,7 @@ const Footer = () => {
 
         <div className="border-t border-gray-800 mt-8 pt-8 text-center">
           <p className="text-gray-400">
-            © 2024 Urban Roofing and Cladding Solutions. All rights reserved.
+            © {new Date().getFullYear()} Urban Roofing and Cladding Solutions. All rights reserved.
           </p>
         </div>
       </div>
