@@ -22,11 +22,50 @@ drop policy if exists "Public read access" on public.projects;
 drop policy if exists "Admin write access" on public.projects;
 
 -- 4. Re-create policies
+-- Anyone (anon key) can read.
 create policy "Public read access"
   on public.projects for select using (true);
 
-create policy "Admin write access"
-  on public.projects for all using (true) with check (true);
+-- Only authenticated Supabase users (i.e. someone who signed in via
+-- supabase.auth.signInWithPassword on /editprojects) can write.
+-- Create the admin user in Supabase Dashboard -> Authentication -> Users -> Add user.
+create policy "Authenticated write access"
+  on public.projects for all
+  using (auth.role() = 'authenticated')
+  with check (auth.role() = 'authenticated');
+
+-- ============================================================
+-- 6. Storage bucket for project images uploaded from /editprojects
+-- ============================================================
+
+-- Create a public bucket named "project-images" (skip if it already exists)
+insert into storage.buckets (id, name, public)
+values ('project-images', 'project-images', true)
+on conflict (id) do nothing;
+
+-- Drop old policies first so re-running never errors
+drop policy if exists "Public read project images" on storage.objects;
+drop policy if exists "Authenticated upload project images" on storage.objects;
+drop policy if exists "Authenticated update project images" on storage.objects;
+drop policy if exists "Authenticated delete project images" on storage.objects;
+
+-- Anyone can view/download images (needed for the public Projects page).
+create policy "Public read project images"
+  on storage.objects for select
+  using (bucket_id = 'project-images');
+
+-- Only authenticated users (signed in via /editprojects) can upload/replace/delete.
+create policy "Authenticated upload project images"
+  on storage.objects for insert
+  with check (bucket_id = 'project-images' and auth.role() = 'authenticated');
+
+create policy "Authenticated update project images"
+  on storage.objects for update
+  using (bucket_id = 'project-images' and auth.role() = 'authenticated');
+
+create policy "Authenticated delete project images"
+  on storage.objects for delete
+  using (bucket_id = 'project-images' and auth.role() = 'authenticated');
 
 -- 5. Seed the 3 existing projects (only if table is empty)
 insert into public.projects (name, type, description, status, images)

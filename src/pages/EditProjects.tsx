@@ -1,31 +1,29 @@
 import { useState, useEffect } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
   Lock, Plus, Pencil, Trash2, X, Save, Loader2, AlertCircle,
-  ImagePlus, GripVertical, CheckCircle2
+  ImagePlus, CheckCircle2, LogOut
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import type { Project, ProjectInsert } from '@/types/project';
 
-const ADMIN_PASSWORD = (import.meta.env.VITE_ADMIN_PASSWORD as string)?.trim();
-const SESSION_KEY = 'ep_auth';
+// ─── Login Gate (Supabase Auth) ────────────────────────────────────────────────
+const LoginGate = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
-// ─── Password Gate ────────────────────────────────────────────────────────────
-const PasswordGate = ({ onAuth }: { onAuth: () => void }) => {
-  const [value, setValue] = useState('');
-  const [error, setError] = useState(false);
-
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (value.trim() === ADMIN_PASSWORD) {
-      sessionStorage.setItem(SESSION_KEY, '1');
-      onAuth();
-    } else {
-      setError(true);
-      setValue('');
-    }
+    setLoading(true);
+    setError(null);
+    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+    setLoading(false);
+    if (err) setError(err.message);
   };
 
   return (
@@ -36,27 +34,36 @@ const PasswordGate = ({ onAuth }: { onAuth: () => void }) => {
             <Lock className="h-7 w-7 text-[#11a9df]" />
           </div>
           <CardTitle className="text-2xl text-gray-900">Developer Access</CardTitle>
-          <p className="text-gray-500 text-sm mt-1">Enter the admin password to manage projects</p>
+          <p className="text-gray-500 text-sm mt-1">Sign in to manage projects</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="space-y-4">
             <input
-              type="password"
-              value={value}
-              onChange={(e) => { setValue(e.target.value); setError(false); }}
-              placeholder="Password"
+              type="email"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setError(null); }}
+              placeholder="Email"
               autoFocus
+              autoComplete="username"
+              className="w-full px-4 py-3 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#11a9df]/40 transition-colors border-gray-300"
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setError(null); }}
+              placeholder="Password"
+              autoComplete="current-password"
               className={`w-full px-4 py-3 border rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#11a9df]/40 transition-colors ${
                 error ? 'border-red-400 bg-red-50' : 'border-gray-300'
               }`}
             />
             {error && (
               <p className="flex items-center gap-1.5 text-red-600 text-sm">
-                <AlertCircle className="h-4 w-4" /> Incorrect password.
+                <AlertCircle className="h-4 w-4" /> {error}
               </p>
             )}
-            <Button type="submit" className="w-full bg-[#11a9df] hover:bg-[#0ea5db] text-white font-bold">
-              Unlock
+            <Button type="submit" className="w-full bg-[#11a9df] hover:bg-[#0ea5db] text-white font-bold" disabled={loading}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Sign In'}
             </Button>
           </form>
         </CardContent>
@@ -66,12 +73,31 @@ const PasswordGate = ({ onAuth }: { onAuth: () => void }) => {
 };
 
 // ─── Project Form ─────────────────────────────────────────────────────────────
+const IMAGE_BUCKET = 'project-images';
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5MB
+
+const uploadProjectImage = async (file: File): Promise<string> => {
+  if (!file.type.startsWith('image/')) throw new Error('Only image files are allowed');
+  if (file.size > MAX_IMAGE_BYTES) throw new Error('Image must be under 5MB');
+
+  const ext = file.name.split('.').pop() || 'jpg';
+  const path = `${crypto.randomUUID()}.${ext}`;
+
+  const { error: uploadErr } = await supabase.storage
+    .from(IMAGE_BUCKET)
+    .upload(path, file, { cacheControl: '3600', upsert: false });
+  if (uploadErr) throw uploadErr;
+
+  const { data } = supabase.storage.from(IMAGE_BUCKET).getPublicUrl(path);
+  return data.publicUrl;
+};
+
 const emptyForm = (): ProjectInsert => ({
   name: '',
   type: '',
   description: '',
   status: 'Completed',
-  images: [''],
+  images: [],
 });
 
 interface ProjectFormProps {
@@ -84,34 +110,39 @@ interface ProjectFormProps {
 const ProjectForm = ({ initial, onSave, onCancel, saving }: ProjectFormProps) => {
   const [form, setForm] = useState<ProjectInsert>(
     initial
-      ? { name: initial.name, type: initial.type, description: initial.description, status: initial.status, images: initial.images.length ? initial.images : [''] }
+      ? { name: initial.name, type: initial.type, description: initial.description, status: initial.status, images: initial.images }
       : emptyForm()
   );
   const [errors, setErrors] = useState<Partial<Record<keyof ProjectInsert, string>>>({});
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   const set = (field: keyof ProjectInsert, value: string) =>
     setForm(prev => ({ ...prev, [field]: value }));
 
-  const setImage = (i: number, val: string) =>
-    setForm(prev => {
-      const imgs = [...prev.images];
-      imgs[i] = val;
-      return { ...prev, images: imgs };
-    });
-
-  const addImage = () =>
-    setForm(prev => ({ ...prev, images: [...prev.images, ''] }));
-
   const removeImage = (i: number) =>
     setForm(prev => ({ ...prev, images: prev.images.filter((_, idx) => idx !== i) }));
+
+  const handleFilesSelected = async (files: FileList | null) => {
+    if (!files || !files.length) return;
+    setUploadError(null);
+    setUploading(true);
+    try {
+      const urls = await Promise.all(Array.from(files).map(uploadProjectImage));
+      setForm(prev => ({ ...prev, images: [...prev.images, ...urls] }));
+    } catch (err) {
+      setUploadError(err instanceof Error ? err.message : 'Upload failed');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const validate = (): boolean => {
     const e: typeof errors = {};
     if (!form.name.trim()) e.name = 'Project name is required';
     if (!form.type.trim()) e.type = 'Project type is required';
     if (!form.description.trim()) e.description = 'Description is required';
-    const validImages = form.images.filter(u => u.trim());
-    if (!validImages.length) e.images = 'At least one image URL is required';
+    if (!form.images.length) e.images = 'At least one image is required';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -119,7 +150,7 @@ const ProjectForm = ({ initial, onSave, onCancel, saving }: ProjectFormProps) =>
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validate()) return;
-    await onSave({ ...form, images: form.images.filter(u => u.trim()) });
+    await onSave(form);
   };
 
   const inputClass = (field: keyof ProjectInsert) =>
@@ -180,41 +211,50 @@ const ProjectForm = ({ initial, onSave, onCancel, saving }: ProjectFormProps) =>
 
       {/* Images */}
       <div>
-        <label className="block text-sm font-semibold text-gray-700 mb-2">Image URLs *</label>
-        <div className="space-y-2">
+        <label className="block text-sm font-semibold text-gray-700 mb-2">Project Images *</label>
+        <div className="flex flex-wrap gap-3">
           {form.images.map((url, i) => (
-            <div key={i} className="flex items-center gap-2">
-              <GripVertical className="h-4 w-4 text-gray-300 flex-shrink-0" />
-              <input
-                className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm outline-none focus:ring-2 focus:ring-[#11a9df]/40"
-                value={url}
-                onChange={e => setImage(i, e.target.value)}
-                placeholder={`Image URL ${i + 1}`}
-              />
-              {form.images.length > 1 && (
-                <button
-                  type="button"
-                  onClick={() => removeImage(i)}
-                  className="p-1.5 text-gray-400 hover:text-red-500 transition-colors flex-shrink-0"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
+            <div key={url + i} className="relative h-24 w-32 rounded-lg overflow-hidden border border-gray-200 group flex-shrink-0">
+              <img src={url} alt={`Image ${i + 1}`} className="h-full w-full object-cover" />
+              <button
+                type="button"
+                onClick={() => removeImage(i)}
+                className="absolute top-1 right-1 p-1 rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
           ))}
+
+          <label className={`h-24 w-32 flex-shrink-0 flex flex-col items-center justify-center gap-1.5 rounded-lg border-2 border-dashed text-gray-400 transition-colors ${
+            uploading ? 'border-gray-200 cursor-wait' : 'border-gray-300 hover:border-[#11a9df] hover:text-[#11a9df] cursor-pointer'
+          }`}>
+            {uploading ? (
+              <Loader2 className="h-5 w-5 animate-spin" />
+            ) : (
+              <>
+                <ImagePlus className="h-5 w-5" />
+                <span className="text-xs font-medium">Upload</span>
+              </>
+            )}
+            <input
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              disabled={uploading}
+              onChange={e => { handleFilesSelected(e.target.files); e.target.value = ''; }}
+            />
+          </label>
         </div>
         {errors.images && <p className="text-red-500 text-xs mt-1">{errors.images}</p>}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="mt-3 border-dashed border-gray-300 text-gray-500 hover:border-[#11a9df] hover:text-[#11a9df] gap-1.5"
-          onClick={addImage}
-        >
-          <ImagePlus className="h-4 w-4" /> Add Image URL
-        </Button>
+        {uploadError && (
+          <p className="flex items-center gap-1.5 text-red-500 text-xs mt-1">
+            <AlertCircle className="h-3.5 w-3.5" /> {uploadError}
+          </p>
+        )}
         <p className="text-xs text-gray-400 mt-2">
-          Paste full image URLs (e.g. from Lovable uploads, Supabase Storage, or any CDN).
+          Upload photos from your device (JPG/PNG, max 5MB each) — stored in Supabase Storage.
         </p>
       </div>
 
@@ -364,6 +404,13 @@ const AdminPanel = () => {
               disabled={showAddForm}
             >
               <Plus className="h-4 w-4" /> Add Project
+            </Button>
+            <Button
+              variant="outline"
+              className="gap-2 border-gray-300 text-gray-500 hover:border-red-400 hover:text-red-500"
+              onClick={() => supabase.auth.signOut()}
+            >
+              <LogOut className="h-4 w-4" /> Sign Out
             </Button>
           </div>
         </div>
@@ -537,10 +584,30 @@ const AdminPanel = () => {
 
 // ─── Root Export ──────────────────────────────────────────────────────────────
 const EditProjects = () => {
-  const [authed, setAuthed] = useState(sessionStorage.getItem(SESSION_KEY) === '1');
+  const [session, setSession] = useState<Session | null>(null);
+  const [checking, setChecking] = useState(true);
 
-  if (!authed) {
-    return <PasswordGate onAuth={() => setAuthed(true)} />;
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+      setChecking(false);
+    });
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, newSession) => {
+      setSession(newSession);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <Loader2 className="h-10 w-10 animate-spin text-[#11a9df]" />
+      </div>
+    );
+  }
+
+  if (!session) {
+    return <LoginGate />;
   }
   return <AdminPanel />;
 };

@@ -11,10 +11,11 @@
 7. [Styling & Theming](#styling--theming)
 8. [State Management](#state-management)
 9. [External Integrations](#external-integrations)
-10. [Configuration Files](#configuration-files)
-11. [Build & Dev Scripts](#build--dev-scripts)
-12. [Responsive Design](#responsive-design)
-13. [Performance](#performance)
+10. [Backend & Admin (Supabase)](#backend--admin-supabase)
+11. [Configuration Files](#configuration-files)
+12. [Build & Dev Scripts](#build--dev-scripts)
+13. [Responsive Design](#responsive-design)
+14. [Performance](#performance)
 
 ---
 
@@ -27,9 +28,10 @@ A modern, responsive corporate website for **Urban Roofing and Cladding Solution
 - Email: urbanroofingandcladding@gmail.com
 - Offices: Tindivanam (Registered), Chennai (Sales)
 
-The site is purely frontend/static — no backend API. Lead generation is driven by WhatsApp, phone, and email links.
+The public site is mostly static; lead generation is driven by WhatsApp, phone, and email links. The **Projects** portfolio is backed by a Supabase (Postgres) table, managed through a hidden password-gated admin route (`/editprojects`). See [External Integrations](#external-integrations).
 
 **GitHub:** https://github.com/gopieaga20/UrbanRoofCladding.git
+**Deployment:** Vercel ([`vercel.json`](vercel.json) — SPA rewrite to `index.html`)
 
 ---
 
@@ -51,6 +53,7 @@ The site is purely frontend/static — no backend API. Lead generation is driven
 | Charts | Recharts | 2.12.7 |
 | Theming | next-themes | 0.3.0 |
 | CSS Processing | PostCSS + Autoprefixer | 8.4.47 |
+| Backend / DB | Supabase (`@supabase/supabase-js`) | 2.108.2 |
 
 ---
 
@@ -68,6 +71,7 @@ UrbanRoofCladding/
 │   │   ├── Applications.tsx  # Industry use cases
 │   │   ├── Projects.tsx      # Portfolio with lightbox gallery
 │   │   ├── Contact.tsx       # Contact info, map, business hours
+│   │   ├── EditProjects.tsx  # Hidden admin route (/editprojects) — Supabase CRUD for projects
 │   │   └── NotFound.tsx      # 404 page
 │   ├── components/
 │   │   ├── Header.tsx        # Sticky nav, mobile menu, contact bar
@@ -77,7 +81,10 @@ UrbanRoofCladding/
 │   │   ├── use-mobile.tsx    # Mobile breakpoint detection hook
 │   │   └── use-toast.ts      # Toast notification hook
 │   ├── lib/
-│   │   └── utils.ts          # cn() classname merge utility
+│   │   ├── utils.ts          # cn() classname merge utility
+│   │   └── supabase.ts       # Supabase client (env-configured)
+│   ├── types/
+│   │   └── project.ts        # Project / ProjectInsert types (Supabase row shape)
 │   ├── App.tsx               # Root component — providers + routing
 │   ├── main.tsx              # ReactDOM.createRoot entry point
 │   ├── index.css             # Global styles and CSS variables
@@ -85,6 +92,8 @@ UrbanRoofCladding/
 ├── index.html                # HTML shell with meta/OG tags
 ├── package.json
 ├── vite.config.ts
+├── vercel.json                # Vercel SPA rewrite config
+├── supabase_setup.sql         # Idempotent schema + RLS policies + seed data for `projects` table
 ├── tailwind.config.ts
 ├── tsconfig.json
 ├── tsconfig.app.json
@@ -109,9 +118,10 @@ Defined in [`src/App.tsx`](src/App.tsx). The app wraps everything in `BrowserRou
 /projects      → Projects.tsx     Portfolio gallery
 /contact       → Contact.tsx      Contact page
 *              → NotFound.tsx     404 fallback
+/editprojects  → EditProjects.tsx Hidden admin route (no Header/Footer shell)
 ```
 
-Layout: `Header` renders above all routes; `Footer` renders below all routes.
+Layout: `Header` renders above all routes; `Footer` renders below all routes — **except** `/editprojects`, which `AppShell` ([`src/App.tsx`](src/App.tsx)) renders standalone without the public layout.
 
 ---
 
@@ -151,10 +161,15 @@ Industry applications grouped into four sections:
 - **Other:** Infrastructure, Institutions, Agriculture, Soundproofing
 
 ### [`Projects.tsx`](src/pages/Projects.tsx)
-Portfolio of 3 completed/ongoing projects:
+Portfolio page, data fetched live from Supabase (`projects` table) on mount:
 - Image gallery per project
 - Lightbox modal with keyboard navigation (← →, Escape) and image counter
 - Status badges: `Completed` / `Ongoing`
+
+### [`EditProjects.tsx`](src/pages/EditProjects.tsx) — Hidden Admin Route (`/editprojects`)
+- Client-side password gate (`VITE_ADMIN_PASSWORD` env var, compared in-browser; session flag stored in `sessionStorage`) — **not real auth**, see Security note below
+- Full CRUD panel for the `projects` table: add, inline-edit, delete, with multi-image-URL form fields and toast notifications
+- Renders standalone, outside the public `Header`/`Footer` shell
 
 ### [`Contact.tsx`](src/pages/Contact.tsx)
 - Phone numbers with click-to-call links
@@ -210,9 +225,10 @@ No global state library (no Redux, Zustand, etc.).
 |---|---|
 | Local component state | `useState` |
 | URL / navigation state | React Router `useLocation` |
-| Server/async data | TanStack React Query (configured, not yet used for API calls) |
+| Server/async data | TanStack React Query (configured, not yet used — Projects data fetching uses `useEffect` + Supabase client directly, not React Query) |
 | Forms | React Hook Form + Zod validation |
 | Toasts | `sonner` + built-in `use-toast` hook |
+| Remote data (Projects) | Supabase client ([`src/lib/supabase.ts`](src/lib/supabase.ts)) — `projects` table, no caching layer |
 
 ---
 
@@ -228,6 +244,30 @@ No global state library (no Redux, Zustand, etc.).
 | Instagram | https://www.instagram.com/urbanroofing_2024/ |
 | Lovable.dev | Platform host; image uploads via lovable-uploads CDN |
 | Unsplash CDN | Fallback placeholder images |
+| Supabase | Postgres backend for the `projects` table — read on `/projects`, CRUD via `/editprojects` |
+
+---
+
+## Backend & Admin (Supabase)
+
+The site is mostly static, but **project portfolio data lives in Supabase** rather than being hardcoded.
+
+- **Client:** [`src/lib/supabase.ts`](src/lib/supabase.ts) — reads `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY` from env (logs an error and falls back to a placeholder client if unset).
+- **Schema:** [`supabase_setup.sql`](supabase_setup.sql) — idempotent script creating the `projects` table (`id`, `name`, `type`, `description`, `status`, `images text[]`, `created_at`), enabling RLS, and seeding the 3 original portfolio projects.
+- **Types:** [`src/types/project.ts`](src/types/project.ts) — `Project` (full row) and `ProjectInsert` (omits `id`/`created_at`).
+- **Public read:** [`Projects.tsx`](src/pages/Projects.tsx) fetches all rows on mount and renders the existing gallery/lightbox UI.
+- **Admin write:** [`EditProjects.tsx`](src/pages/EditProjects.tsx) at `/editprojects` — real Supabase Auth login (email + password via `supabase.auth.signInWithPassword`), session managed by the Supabase client (not `sessionStorage`), with a Sign Out button.
+- **RLS:** `public.projects` has two policies (see [`supabase_setup.sql`](supabase_setup.sql)) — `"Public read access"` (anyone, `select`) and `"Authenticated write access"` (`auth.role() = 'authenticated'`, all operations). Only a signed-in Supabase Auth user can insert/update/delete; the anon key alone cannot.
+- **Provisioning an admin:** create the user in Supabase Dashboard → Authentication → Users → Add user (email + password); no app code or env var needed for credentials.
+
+### Project image uploads (Supabase Storage)
+
+Images are no longer pasted as URLs — `/editprojects` uploads files directly from the admin's device into Supabase Storage.
+
+- **Bucket:** `project-images` (public bucket, created by [`supabase_setup.sql`](supabase_setup.sql)).
+- **Upload flow:** [`EditProjects.tsx`](src/pages/EditProjects.tsx)'s `uploadProjectImage()` validates the file (must be an image, ≤5MB), uploads it to the bucket under a random UUID filename, then resolves its public URL via `supabase.storage.from('project-images').getPublicUrl()`. That URL is what's stored in `projects.images`.
+- **Storage RLS:** public `select` on the bucket (so the public Projects page can load images), but `insert`/`update`/`delete` require `auth.role() = 'authenticated'` — same admin-only gate as the table.
+- **Known limitation:** deleting a project or removing an image from the form does not delete the underlying file from Storage — it just drops the URL from `projects.images`, leaving an orphaned object in the bucket. Acceptable for now given low volume; revisit with a cleanup job/trigger if storage usage grows.
 
 ---
 
@@ -254,6 +294,17 @@ No global state library (no Redux, Zustand, etc.).
 - TypeScript-aware rules
 - React Hooks and React Refresh plugins
 - Unused vars/params warnings suppressed
+
+### [`vercel.json`](vercel.json)
+- SPA rewrite: all paths → `/index.html` (required for client-side routing on Vercel)
+
+### Environment variables (`.env`, not committed — see `.gitignore`)
+| Variable | Purpose |
+|---|---|
+| `VITE_SUPABASE_URL` | Supabase project URL |
+| `VITE_SUPABASE_ANON_KEY` | Supabase anon/public API key |
+
+Admin access for `/editprojects` is a real Supabase Auth user (created in the Supabase dashboard), not an env var — see [Backend & Admin](#backend--admin-supabase).
 
 ---
 
