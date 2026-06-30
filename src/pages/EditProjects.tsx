@@ -289,8 +289,16 @@ const AdminPanel = () => {
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (err) setError(`Supabase error: ${err.message} (code: ${err.code})`);
-    else setProjects(data as Project[]);
+    if (err) {
+      const msg = err.message || JSON.stringify(err);
+      if (msg.includes('NOT_FOUND') || String(err.code) === '404') {
+        setError('Supabase project is paused or the "projects" table does not exist. Go to supabase.com → your project → Resume, then run supabase_setup.sql.');
+      } else {
+        setError(`Supabase error: ${msg} (code: ${err.code})`);
+      }
+    } else {
+      setProjects(data as Project[]);
+    }
     setLoading(false);
   };
 
